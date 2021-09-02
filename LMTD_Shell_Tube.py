@@ -5,8 +5,10 @@ import math
 import Ft_calc
 import TEMA_check
 import numpy as np
+import pandas as pd
 import FlowBC
 import Wall_thickness as wt
+import shell
 from CoolProp.CoolProp import PropsSI
 
 # Sez. 1 - DISPOSIZIONE FLUIDI
@@ -15,8 +17,8 @@ from CoolProp.CoolProp import PropsSI
 # Verrà attribuito l'indice 'wf_position = 0' al fluido di lavoro se questo è all'interno ('pipe') o 'wf_position = 1' se è all'esterno ('shell').
 # In tutto il resto del cDoice il primo elemento di una lista farà riferimento al fluido che scorre all'interno, il secondo elemento a 
 # quello che scorre all'esterno, indipendentemente dal fatto che il fluido di lavora sia nel pipe o nello shell.
-# In tutto il cDoice le proprietà relative al fluido di lavoro sono caratterizate dall'indice 'wf_position'
-# In tutto il cDoice le proprietà relative al fluido secondario sono caratterizate dall'indice 'sf_position'
+# In tutto il codice le proprietà relative al fluido di lavoro sono caratterizate dall'indice 'wf_position'
+# In tutto il codice le proprietà relative al fluido secondario sono caratterizate dall'indice 'sf_position'
 decision = 'not accepted'
 while decision != 'accepted':
     wf_position = input("Specify working fluid position in the heat exchanger ['pipe' or 'shell']:\n")
@@ -140,22 +142,29 @@ A = Q / (Uo * LMTD * Ft)
 
 # Sez. 8 - SCELTE TUBI
 
+# Calcolo del tube pitch (distanza tra il centro dei tubi) e scelta sulla disposizione dei tubi.
+# Comunemente si ha pitch pari a 1.25, 1.33 o 1.5 diametro esterno del tubo.
+tube_disposition = input("Select tube disposition between triangular [t] or square [s]:\n")
+pitch_ratio = input("select the ratio between tube pitch and tube diamater [-]: \n")
+
 # Scelta lunghezza tubi (L) #mm
 L = input('Specify tube lenght [mm]:\n')
 
 # Scelta diametro nominale tubi (Do)
 condition = 'false'
 while condition == 'false':
-    Do = input('Specify tubes outer diameter (0.5 - 0.75 - 1) [inc]:\n')
+    Do = input('Specify tubes nominal diameter (0.5 - 0.75 - 1) [inc]:\n')
     if Do == 0.5 or Do == 0.75 or Do == 1:
         condition = 'true'
     else:
-        print('diametro esterno tubi non standard. Scegliere uno dei valori suggeriti')
+        print('diametro nominale tubi non standard. Scegliere uno dei valori suggeriti')
 
 # Calcolo minimo spessore tubi (wt_min) secondo norma ASME B31.3 --> wt_min = (P.OD) / 2(SEW + PY) + CA
 # P = massimo gradiente di pressione che si può verificare nello scambiatore al design point. Eventuali condizioni
-# più severe verranno considerate scegliendo un opportuno fattore di sicurezza
-P = max(pressure_inlet[wf_position],pressure_inlet[sf_position],pressure_outlet[wf_position],pressure_outlet[sf_position],1/pressure_inlet[wf_position],1/pressure_inlet[sf_position],1/pressure_outlet[wf_position],1/pressure_outlet[sf_position],abs(pressure_inlet[wf_position]-pressure_inlet[sf_position]),abs(pressure_outlet[wf_position]-pressure_outlet[sf_position]))
+# più severe sono considerate scegliendo un opportuno fattore di sovradimensionamento
+# Un fattore di sicurezza 'SF' è utilizzato come margine di sicurezza per la progettazione.
+P = [pressure_inlet[0],pressure_outlet[0],1]
+P = input('select oversizing factor for pressure: \n')*P
 # OD = diametro esterno (outer diameter) secondo norme ASME
 if Do == 0.5:
     OD = 0.84 #inch
@@ -165,18 +174,17 @@ elif Do == 1:
     OD = 1.315 #inch
 else:
     print('errore nella scelta del diametro tubi')
+
+pitch = pitch_ratio*OD
+    
 # S = Maximum allowable stress value for the selected material [MPa]. Riferirsi a tabella 1.A ASME B36.10 per carbon steel e ASME B36.19 per stainless steel
 # Alcuni valori sono riportati qui: https://www.cis-inspector.com/asme-code-calculation-allowable-stresses.html
-S = 118 # riferito a carbon steel per tubature di piccole dimensioni, T < 300 °C
+S = 170 # [MPa] 0.9*Yield strength of Carbon steel at 150°C
 
-# E = Longitudinal Weld Joint Quality factor (1 per seamless pipe, 0.6 per Furnace Butt Welded Pipes, 0.85 per Electric Resistance Welded Pipes)
-E = 1
+E = 204E3  #[MPa] Modulo di elasticità
 
-# W = Weld Joint Strength Reduction Factor (incluso solo per completezza. Per noi è 1)
-W = 1
-
-# Y = Coefficiente da Tabella 304.1.1. Per tubature con spessore "sottile". Consigliato di applicarlo sempre. Per temperature < 500 °C, Y = 0.4
-Y = 0.4
+# E = Efficiency of ligaments
+eta_joint = (pitch - OD)/pitch
 
 # CA = corrosion allowance
 CA = 0.5 #mm -  Valore esempio. Scegliere opportunamente
@@ -184,7 +192,11 @@ CA = 0.5 #mm -  Valore esempio. Scegliere opportunamente
 # Sf = Safety Factor
 Sf = 1.1
 
-wt_min = ((P*OD*0.0254) / 2 / (S*1000000*E*W + P*Y) * 0.001) * Sf + CA #mm
+# La formula ASME prevede l'utilizzo del raggio interno. Per ragioni di procedura utiliziamo il raggio nominale del tubo
+# (sovradimensionamento dello spessore minimo).
+P_ext = [pressure_inlet[1],pressure_outlet[1],1]
+T = np.mean([np.mean([temperature_inlet[0],temperature_outlet[0]]),np.mean([temperature_inlet[1],temperature_outlet[1]])])
+wt_min = wt.minimum_wall_thickness(P,P_ext,eta_joint,Do/2,S,L,T,E) * Sf + CA #mm
 
 # Selezione schedula tubi e rispettivo spessore (wt). Calcolo diametro interno (ID) #mm
 wt = wt.wall_thickness(Do,wt_min)
@@ -209,3 +221,87 @@ if Re_outlet[0] < 10000:
     print("Attenzione: basso Reynolds all'uscita dello scambiatore lato tubi!")
 
 # Sez. 10 - SCELTE MANTELLO
+
+# Calcolo del diametro dello shell. 'K1' ed 'n' sono parametri tabulati.
+K1,n = shell.shell_sizing(tube_disposition,np_tubi)
+D_bundle = OD*(nt/K1)**(1/n)
+
+# Calcolo del bundle clearance basato su approccio grafico.
+# Bisogna inizialmente fissare la tipologia di scambiatore scegliendo tra:
+    # - Pull-through Floating head
+    # - Split-ring Floating head
+    # - Packed head
+    # - U-tube
+rear_head_type = input("Select between Pull-through floating head [PT], Split-ring floating head [SR],\n Packed head [P] and U-tube [U] :\n")
+shell_clearance = shell.clearence(rear_head_type,D_bundle)
+D_shell = D_bundle + 2*shell_clearance
+
+# Per diametri dello shell inferiori a 24", lo shell è ottenuto da un tubo commerciale.
+# I tubi commerciali non hanno diametri che variano con continuità, ma sono disponibili solo determinate misure.
+# Prendiamo queste misure da tabella importata ('tubi.xlsx') e selezioniamo il valore superiore a 
+# 'D_shell' più prossimo rispetto a quello calcolato.
+if D_shell < 24*25.4: # conversione da inch a mm
+    # Dimensioni caratteristiche di tubi commerciali sono nella tabella 'tubi.xlsx' 
+    data = pd.read_excel (r'C:\Users\Utente1\Documents\Tifeo\Python\HE\LMTD\tubi.xlsx')
+    D_shell = max(data.iloc[(data['DN [mm]']-D_shell).abs().argsort()[:2]]['DN [mm]'].tolist())
+    idx = max(data.iloc[(data['DN [mm]']-D_shell).abs().argsort()[:2]].index.tolist())
+    D_shell_ext = data.D_ext[idx]
+    P_ext = [1]
+    P = [pressure_inlet[1],pressure_outlet[1],1]
+    T = np.mean([temperature_inlet[1],temperature_outlet[1]])
+    wt_min = wt.minimum_wall_thickness(P,P_ext,eta_joint,Do/2,S,L,T,E) * Sf + CA #mm
+    
+    # Utiliziamo come spessore del mantello uno spessore standard tra quelli presenti nella tabella 'tubi.xlsx'.
+    wt_serie = data.loc[idx,'XS':'sch.160']
+    wt = np.array(wt_serie)
+    aux = wt - wt_min
+    b = np.argwhere(aux > 0)
+    wt = wt_min + min(aux[b])
+    
+    # Noto il diametro interno dello shell possiamo calcolare il corretto numero di tubi e l'area di scambio.
+    D_shell_int = D_shell_ext - 2*wt
+    if np_tubi == 1:
+        CTP = 0.93
+    elif np_tubi == 2:
+        CTP = 0.9
+    else:
+        CTP = 0.85
+    if tube_disposition == 't':
+        CL = np.sin(np.pi/3)
+    else:
+        CL = 1
+    nt = (CTP/CL)*(D_shell_int**2/pitch**2)*np.pi/4
+    A = np.pi * OD * L * nt
+    
+# Sez. 11 - CALCOLI MANTELLO
+    
+# Viene inserito dall'utente il distanziamento tra i baffle dello scambiatore. Il distanziamento è un valore
+# compreso tra un quinto del diametro dello shell e il diametro dello shell
+decision = 'not accepted'
+while decision == 'not accepted':
+    B = input("Selection of the ratio between baffle spacing and shell diameter:\n")
+    if B > 0.2 and B < 1:
+        decision = 'accepted'
+    else:
+        print('the value of the ratio has to be comprised between 0.2 and 1')
+B = D_shell/B
+
+# Il numero di baffle è basato sul loro distanziamento e la lunghezza totale dello scambiatore
+n_baffle = math.ceil(L/B - 1)
+
+# Calcolo dell'area di attraversamento lato mantello
+A_shell = (pitch - OD)*D_shell_int*B / pitch
+
+# Calcolo del numero di Reynolds lato mantello
+velocity_inlet[1] = M[1] / (density_inlet[1]*A_shell)
+velocity_outlet[1] = M[1] / (density_outlet[1]*A_shell)
+
+if tube_disposition == 't':
+    D_eq_shell = 1.1*(pitch**2 - 0.917*OD**2)/OD
+else:
+    D_eq_shell = 1.27*(pitch**2 - 0.785*OD**2)/OD
+
+Re_inlet[1] = density_inlet[1] * velocity_inlet[1] * D_eq_shell * 10**3 / viscosity_inlet[1]
+Re_outlet[1] = density_outlet[1] * velocity_outlet[1] * D_eq_shell * 10**3 / viscosity_outlet[1]
+
+baffle_cut = input('select baffle cut: \n')
