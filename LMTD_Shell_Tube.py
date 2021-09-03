@@ -9,6 +9,7 @@ import pandas as pd
 import FlowBC
 import Wall_thickness as wt
 import shell
+import heat_transfer as HT
 from CoolProp.CoolProp import PropsSI
 
 # Sez. 1 - DISPOSIZIONE FLUIDI
@@ -64,6 +65,9 @@ viscosity_inlet = [0,0]
 viscosity_outlet = [0,0]
 Re_inlet = [0,0]
 Re_outlet = [0,0]
+j_h = [0,0]
+alfa = [0,0]
+h_fouling = [0,0]
 
 # Sez. 3 - SCELTA MASSIME PERDITE DI CARICO ACCETTABILI
 P_loss = [0,0]
@@ -76,7 +80,7 @@ P_loss[sf_position] = int(input("Specify maximum allowable pressure loss - SECON
 # monofase, specificare Pressione e Temperatura, poi calcolare titolo. Se si tratta di flusso bifase, 
 # specificare Pressione O Temperatura (calcolare l'altro) e Titolo.
 fluid[wf_position] = 'Water'
-[pressure_inlet[wf_position], temperature_inlet[wf_position], quality_inlet[wf_position], density_inlet[wf_position], enthalpy_inlet[wf_position], viscosity_inlet[wf_position], pressure_outlet[wf_position], temperature_outlet[wf_position], quality_outlet[wf_position], density_outlet[wf_position], enthalpy_outlet[wf_position], viscosity_outlet[wf_position]] = FlowBC.InletOutlet(fluid[wf_position], P_loss[wf_position], P_inlet = 100000, T_inlet = 300, T_outlet = 330)
+[pressure_inlet[wf_position], temperature_inlet[wf_position], quality_inlet[wf_position], density_inlet[wf_position], enthalpy_inlet[wf_position], viscosity_inlet[wf_position], pressure_outlet[wf_position], temperature_outlet[wf_position], quality_outlet[wf_position], density_outlet[wf_position], enthalpy_outlet[wf_position], viscosity_outlet[wf_position]] = FlowBC.InletOutlet(fluid[wf_position], P_loss[wf_position], P_inlet = 200000, T_inlet = 363, T_outlet = 343)
 
 # Sez. 5 - FLUIDO SECONDARIO
 #
@@ -84,7 +88,7 @@ fluid[wf_position] = 'Water'
 # monofase, specificare Pressione e Temperatura, poi calcolare titolo. Se si tratta di flusso bifase, 
 # specificare Pressione O Temperatura (calcolare l'altro) e Titolo.
 fluid[sf_position] = 'Water'
-[pressure_inlet[sf_position], temperature_inlet[sf_position], quality_inlet[sf_position], density_inlet[sf_position], enthalpy_inlet[sf_position], viscosity_inlet[sf_position], pressure_outlet[sf_position], temperature_outlet[sf_position], quality_outlet[sf_position], density_outlet[sf_position], enthalpy_outlet[sf_position], viscosity_outlet[sf_position]] = FlowBC.InletOutlet(fluid[sf_position], P_loss[sf_position], P_inlet = 100000, T_inlet = 300, T_outlet = 330)
+[pressure_inlet[sf_position], temperature_inlet[sf_position], quality_inlet[sf_position], density_inlet[sf_position], enthalpy_inlet[sf_position], viscosity_inlet[sf_position], pressure_outlet[sf_position], temperature_outlet[sf_position], quality_outlet[sf_position], density_outlet[sf_position], enthalpy_outlet[sf_position], viscosity_outlet[sf_position]] = FlowBC.InletOutlet(fluid[sf_position], P_loss[sf_position], P_inlet = 100000, T_inlet = 293, T_outlet = 303)
 
 # DEFINIZIONE MASSA FLUSSO SECONDARIO
 # La portata massica del fluido secondario viene calcolata sulla base delle condizioni al contorno specificate per i due fluidi
@@ -135,7 +139,7 @@ elif HE_cat == 'X':
        
 # Specificare il valore del coefficiente globale di scambio di primo tentativo (Uo)
 # Per stimare il valore di Uo vedi Coulson and Richardson's pag. 637 o https://www.engineersedge.com/thermodynamics/overall_heat_transfer-table.htm
-Uo = input("Estimate overall heat exchange coefficient Uo [W/m2 K]:\n")
+Uo = float(input("Estimate overall heat exchange coefficient Uo [W/m2 K]:\n"))
 
 # Calcolo Area di Scambio
 A = Q / (Uo * LMTD * Ft)
@@ -145,15 +149,15 @@ A = Q / (Uo * LMTD * Ft)
 # Calcolo del tube pitch (distanza tra il centro dei tubi) e scelta sulla disposizione dei tubi.
 # Comunemente si ha pitch pari a 1.25, 1.33 o 1.5 diametro esterno del tubo.
 tube_disposition = input("Select tube disposition between triangular [t] or square [s]:\n")
-pitch_ratio = input("select the ratio between tube pitch and tube diamater [-]: \n")
+pitch_ratio = float(input("select the ratio between tube pitch and tube diamater [-]: \n"))
 
 # Scelta lunghezza tubi (L) #mm
-L = input('Specify tube lenght [mm]:\n')
+L = float(input('Specify tube lenght [mm]:\n'))
 
 # Scelta diametro nominale tubi (Do)
 condition = 'false'
 while condition == 'false':
-    Do = input('Specify tubes nominal diameter (0.5 - 0.75 - 1) [inc]:\n')
+    Do = float(input('Specify tubes nominal diameter (0.5 - 0.75 - 1) [inc]:\n'))
     if Do == 0.5 or Do == 0.75 or Do == 1:
         condition = 'true'
     else:
@@ -163,8 +167,8 @@ while condition == 'false':
 # P = massimo gradiente di pressione che si può verificare nello scambiatore al design point. Eventuali condizioni
 # più severe sono considerate scegliendo un opportuno fattore di sovradimensionamento
 # Un fattore di sicurezza 'SF' è utilizzato come margine di sicurezza per la progettazione.
-P = [pressure_inlet[0],pressure_outlet[0],1]
-P = input('select oversizing factor for pressure: \n')*P
+P = np.array([pressure_inlet[0],pressure_outlet[0],1])
+P = float(input('select oversizing factor for pressure: \n'))*P
 # OD = diametro esterno (outer diameter) secondo norme ASME
 if Do == 0.5:
     OD = 0.84 #inch
@@ -182,6 +186,9 @@ pitch = pitch_ratio*OD
 S = 170 # [MPa] 0.9*Yield strength of Carbon steel at 150°C
 
 E = 204E3  #[MPa] Modulo di elasticità
+
+T_wall = np.mean([np.mean([temperature_inlet[0],temperature_outlet[0]]),np.mean([temperature_inlet[1],temperature_outlet[1]])])
+k = 8.54 + 0.02*T_wall # Conducibilità del materiale
 
 # E = Efficiency of ligaments
 eta_joint = (pitch - OD)/pitch
@@ -249,6 +256,8 @@ if D_shell < 24*25.4: # conversione da inch a mm
     P_ext = [1]
     P = [pressure_inlet[1],pressure_outlet[1],1]
     T = np.mean([temperature_inlet[1],temperature_outlet[1]])
+    
+    # Dimensionamento dello spessore dei tubi - Procedure ASME
     wt_min = wt.minimum_wall_thickness(P,P_ext,eta_joint,Do/2,S,L,T,E) * Sf + CA #mm
     
     # Utiliziamo come spessore del mantello uno spessore standard tra quelli presenti nella tabella 'tubi.xlsx'.
@@ -304,4 +313,43 @@ else:
 Re_inlet[1] = density_inlet[1] * velocity_inlet[1] * D_eq_shell * 10**3 / viscosity_inlet[1]
 Re_outlet[1] = density_outlet[1] * velocity_outlet[1] * D_eq_shell * 10**3 / viscosity_outlet[1]
 
-baffle_cut = input('select baffle cut: \n')
+baffle_cut = input('select baffle cut [15-20-25-30-35-40-45]: \n')
+
+# Sez. 12 - VALUTAZIONE HEAT TRANSFER FACTOR
+
+# Lato tubi
+j_h[0] = HT.heat_transfer_factor_tube(np.mean([Re_inlet[0],Re_outlet[0]]),L/ID)
+
+# Lato shell
+j_h[1] = HT.heat_transfer_factor_shell(np.mean([Re_inlet[1],Re_outlet[1]]),baffle_cut)
+
+# Sez. 13 - VALUTAZIONE HEAT TRANSFER COEFFICIENT
+
+# Calcolo alfa lato tubo
+if quality_inlet[0] == quality_outlet[0]:
+    # Raffreddamento/Riscaldamento
+    alfa[0] = HT.heat_transfer_coefficient_1ph(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,fluid,Re_inlet,Re_outlet,j_h,ID,0)
+elif quality_inlet[0] > quality_outlet[0]:
+    # Condensazione
+    alfa[0] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,ID,fluid,1,M)
+else:
+    # Evaporazione
+    alfa[0] = HT.heat_exchange_coefficient_evaporation()
+  
+# Calcolo alfa lato mantello
+if quality_inlet[1] == quality_outlet[1]:
+    # Raffreddamento/Riscaldamento
+    alfa[1] = HT.heat_transfer_coefficient_1ph(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,fluid,Re_inlet,Re_outlet,j_h,ID,0)
+elif quality_inlet[1] > quality_outlet[1]:
+    # Condensazione
+    alfa[1] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,ID,fluid,1,M)
+else:
+    # Evaporazione
+    alfa[1] = HT.heat_exchange_coefficient_evaporation()
+    
+# Sez. 14 - SPECIFICA COEFFICIENTI DI SPORCAMENTO
+
+h_fouling[0] = input('Select the fouling coefficient in the pipe side: \n')
+h_fouling[1] = input('Select the fouling coefficient in the shell side: \n')
+
+Uo_star = (1/alfa[1] + 1/h_fouling[1] + OD*np.log(OD/ID)/(2*k) + (1/alfa[0])*(OD/ID) + (1/h_fouling[0])*(OD/ID))**-1

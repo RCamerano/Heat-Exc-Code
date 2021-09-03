@@ -36,5 +36,7 @@ def Ft_check(HE_cat,np_tubi):
     if HE_cat == 'E' and (np_tubi%2 != 0 and np_tubi != 1):
         condition = 'false'
         print('non esiste una formula per calcolare il valore di Ft. Scambiatore non usuale')
+    else:
+        condition = 'true'
     return condition
         

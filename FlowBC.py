@@ -68,7 +68,7 @@ def InletOutlet(fluid,P_loss, P_inlet = None, T_inlet = None, Q_inlet = None, T_
         #
         # Per il calcolo delle consizioni di uscita, si presuppone che il FLUIDO SECONDARIO subisca perdite di carico pari a quelle massime accettabili
         pressure_outlet = P_inlet - P_loss   # CAPIRE COME DEFINIRE LO STATO DEL FLUSSO
-        temperature_outlet = T_inlet #[k]
+        temperature_outlet = T_outlet #[k]
         quality_outlet = PropsSI('Q', 'T', temperature_outlet, 'P', pressure_outlet, fluid)
         if quality_outlet == -1.0:
             density_outlet = PropsSI('D', 'T', temperature_outlet, 'P', pressure_outlet, fluid) 
