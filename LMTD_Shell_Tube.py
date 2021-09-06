@@ -352,4 +352,9 @@ else:
 h_fouling[0] = input('Select the fouling coefficient in the pipe side: \n')
 h_fouling[1] = input('Select the fouling coefficient in the shell side: \n')
 
+# Sez. 15 - CALCOLO COEFFICIENTE GLOBALE DI SCAMBIO (REALE)
+
 Uo_star = (1/alfa[1] + 1/h_fouling[1] + OD*np.log(OD/ID)/(2*k) + (1/alfa[0])*(OD/ID) + (1/h_fouling[0])*(OD/ID))**-1
+
+# Sez. 16 -  VALUTAZIONE FRICTION COEFFICIENT
+
