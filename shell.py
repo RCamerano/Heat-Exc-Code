@@ -66,6 +66,6 @@ def clearance(shell_type,D_bundle):
     m = (y1-y2)/(x1-x2)
     b = (x1*y2 - x2*y1)/(x1-x2)
     
-    shell_clearance = m*D_bundle + b
+    shell_clearance = 0.001*(m*D_bundle + b) # [m]
     
     return shell_clearance
