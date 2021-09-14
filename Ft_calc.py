@@ -39,9 +39,23 @@ def Ft_TEMA_X(flow_mix,T1,T2,t1,t2):
     r = S / (np.log(1 / (1 - S/K * np.log(1/(1-K)) )))
     if flow_mix[0] == 'N' and flow_mix[1] == 'Y':
        Ft = r / r_counter
-       condition = 'true'
     else:
         print('per ora è gestibile solo la condizione tubi-unmixed and shell-mixed. Modificare flow_mix coerentemente')
     return Ft
 
+
+def Ft_Air_cooler(temperature_inlet,temperature_outlet,wf_position,sf_position,LMTD,np_tubi):
+    # Calcolo del fattore di correzione Ft per non perfetta controcorrente
+    A = ((temperature_inlet[wf_position] - temperature_outlet[wf_position])**2 + (temperature_inlet[sf_position] - temperature_outlet[sf_position])**2)**0.5
+    B = ((temperature_inlet[wf_position] - temperature_outlet[sf_position])**0.5 + (temperature_outlet[wf_position] - temperature_inlet[sf_position])**(1/1.7))**1.7
     
+    CLMTD = A/(1.7*np.log((A+B)/(B-A)))
+    if np_tubi == 1:
+        Ft = CLMTD/LMTD
+    elif np_tubi == 2:
+        CLMTD = 0.6*CLMTD + 0.4*LMTD
+        Ft = CLMTD/LMTD
+    elif np_tubi >= 3:
+        Ft = 1
+        
+    return Ft

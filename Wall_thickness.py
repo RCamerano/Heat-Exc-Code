@@ -173,6 +173,7 @@ def minimum_wall_thickness(P,P_ext,eta_joint,R,S,L,T,E,data):
                 
             elif param2 < 4:
                 A = 1.1/(param2)**2
+                # L'algoritmo 'RandomForest' è utilizzato per interpolare le tabelle ASME per il parametro B
                 data = pd.read_excel (r'C:\Users\Utente1\Documents\Tifeo\Python\HE\LMTD\Pipe_sizing_B.xlsx')
                 clf.fit(data[['T','A']], data['B [Mpa]'])
                 B = clf.predict([[T,A]])

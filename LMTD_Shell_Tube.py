@@ -19,7 +19,7 @@ import friction_coefficient
     # - Permissible Values: alcuni input non possono variare arbitrariamente, devono essere inseriti dei valori prestabiliti.
     # - Unit: unità di misura del parametro
     # - Selected Value: è il valore del parametro che viene caricato dal codice nel suo funzionamento
-data = pd.read_excel(r'C:\Users\Utente1\Documents\Tifeo\Python\HE\LMTD\input.xlsx')
+data = pd.read_excel(r'C:\Users\Utente1\Documents\Tifeo\Python\HE\LMTD\input.xlsx','Input_S&T')
 
 # Sez. 1 - DISPOSIZIONE FLUIDI
 # All'utente è chiesto di specificare se il fluido di lavoro scorre nel tubo interno (i.e. 'pipe') o
@@ -341,7 +341,7 @@ if D_shell_int < 24*0.0254: # conversione da inch a m
     # - Pressione atmosferica, nel caso in cui il mantello fosse vuoto (mantello "vuoto")
     P_ext = [100000]
     P = [pressure_inlet[1],pressure_outlet[1],100000]
-    wt_min[1] = Wall_thickness.minimum_wall_thickness(P,P_ext,eta_joint,D_shell_ext/2,S,L,temperature_mean,E,data) * Sf + CA # [m]
+    wt_min[1] = Wall_thickness.minimum_wall_thickness(P,P_ext,eta_joint,D_shell_ext/2,S,L,temperature_mean[1],E,data) * Sf + CA # [m]
     
     # Una volta che il diametro dello shell è stato definito ed è stato calcolata lo spessore minimo che deve
     # avere lo shell per resistere all'effetto della pressione, entriamo nella tabella e selezioniamo tra gli spessori
@@ -455,7 +455,7 @@ else:
 # Calcolo alfa lato tubo. Abbiamo 3 procedure differenti in base al fenomeno di scambio termica che si presenta.
 # - Raffreddamento/Riscaldamento
 if quality_inlet[1] == quality_outlet[1] and alfa[1] == 0:
-    alfa[1] = HT.heat_transfer_coefficient_1ph(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,fluid,Re_inlet,Re_outlet,j_h,D_eq[1],1,L)
+    alfa[1] = HT.heat_transfer_coefficient_1ph(temperature_mean,pressure_mean,fluid,Re_mean,j_h,D_eq[1],1,L)
 # - Condensazione
 elif quality_inlet[1] > quality_outlet[1] and alfa[1] == 0:
     alfa[1] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,D_eq[1],fluid,1,M)

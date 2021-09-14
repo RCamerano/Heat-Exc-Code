@@ -5,6 +5,7 @@ Created on Wed Jun 23 12:18:51 2021
 @author: Paolo
 """
 
+import numpy as np
 from CoolProp.CoolProp import PropsSI
 
 def InletOutlet(fluid,P_loss, P_inlet = 'None', T_inlet = 'None', Q_inlet = 'None', T_outlet = 'None', Q_outlet = 'None'):
@@ -96,3 +97,17 @@ def InletOutlet(fluid,P_loss, P_inlet = 'None', T_inlet = 'None', Q_inlet = 'Non
 
 
     return pressure_inlet, temperature_inlet, quality_inlet, density_inlet, enthalpy_inlet, viscosity_inlet, pressure_outlet, temperature_outlet, quality_outlet, density_outlet, enthalpy_outlet, viscosity_outlet
+
+# La temperatura di uscita dell'aria dall'air cooler è valutata sulla base del valore di primo tentativo di Uo
+def air_cooler_outlet(Uo,T_inlet,T_outlet):
+    # Le unità di misure sono convertite da SI a sistema imperiale
+    T_inlet_wf = (T_inlet[0] - 273.15)*9/5 + 32
+    T_inlet_sf = (T_inlet[1] - 273.15)*9/5 + 32
+    T_outlet_wf = (T_outlet[0] - 273.15)*9/5 + 32
+    
+    Uo = 0.1761*Uo
+    
+    T_air_out = T_inlet_sf + (Uo + 1)*(np.mean([T_inlet_wf,T_outlet_wf]) - T_inlet_sf)/10
+    T_air_out = (T_air_out - 32)*5/9 + 273.15
+    
+    return T_air_out

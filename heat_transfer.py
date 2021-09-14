@@ -129,8 +129,6 @@ def heat_exchange_coefficient_evaporation(T,p,x,h,rho,D_hydraulic,velocity,fluid
     # da cui dipende il coefficiente di scambio, calcolato questo valutiamo il flusso termico, aggiorniamo il valore
     # del 'Boiling number' e lo confrontiamo con il valore precedentemente usato. Questa procedura continua fino
     # a che lo scostamento tra due 'Boiling number' consecutivi è inferiore all' 1%.
-    # Il valore di primo tentativo per il 'Boiling number' dovrà essere assegnato sulla base del Boiling number 
-    # al volume di controllo precedente (****DA IMPLEMENTARE****)
     Bo = 0.00003
     while err > tollerance:
         viscosity_l = PropsSI('V', 'P', p[idx], 'Q', 0, fluid[idx])
@@ -185,6 +183,7 @@ def heat_exchange_coefficient_evaporation(T,p,x,h,rho,D_hydraulic,velocity,fluid
         err = abs((Bo_next-Bo)/Bo)
         Bo = Bo_next
     
+    # L'ultimo 'alfa_ev' trovato corrisponde al valore cercato del coefficiente di scambio
     alfa = alfa_ev
         
     return alfa
