@@ -3,12 +3,10 @@
 
 import math
 import Ft_calc
-import TEMA_check
 import numpy as np
 import pandas as pd
 import FlowBC
 import Wall_thickness
-import shell
 import heat_transfer as HT
 import friction_coefficient
 from CoolProp.CoolProp import PropsSI

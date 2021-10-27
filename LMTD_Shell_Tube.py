@@ -22,13 +22,13 @@ import friction_coefficient
 data = pd.read_excel(r'C:\Users\Utente1\Documents\Tifeo\Python\HE\LMTD\input.xlsx','Input_S&T')
 
 # Sez. 1 - DISPOSIZIONE FLUIDI
-# All'utente è chiesto di specificare se il fluido di lavoro scorre nel tubo interno (i.e. 'pipe') o
-# nel mantello esterno (i.e. 'shell'). Se viene utilizzato un input diverso il cDoice chiede di inserire nuovamente l'input.
-# Verrà attribuito l'indice 'wf_position = 0' al fluido di lavoro se questo è all'interno ('pipe') o 'wf_position = 1' se è all'esterno ('shell').
-# In tutto il resto del cDoice il primo elemento di una lista farà riferimento al fluido che scorre all'interno, il secondo elemento a 
-# quello che scorre all'esterno, indipendentemente dal fatto che il fluido di lavora sia nel pipe o nello shell.
-# In tutto il codice le proprietà relative al fluido di lavoro sono caratterizate dall'indice 'wf_position'
-# In tutto il codice le proprietà relative al fluido secondario sono caratterizate dall'indice 'sf_position'
+    # All'utente è chiesto di specificare se il fluido di lavoro scorre nel tubo interno (i.e. 'pipe') o
+    # nel mantello esterno (i.e. 'shell'). Se viene utilizzato un input diverso il codice chiede di inserire nuovamente l'input.
+    # Verrà attribuito l'indice 'wf_position = 0' al fluido di lavoro se questo è all'interno ('pipe') o 'wf_position = 1' se è all'esterno ('shell').
+    # In tutto il resto del cDoice il primo elemento di una lista farà riferimento al fluido che scorre all'interno, il secondo elemento a 
+    # quello che scorre all'esterno, indipendentemente dal fatto che il fluido di lavora sia nel pipe o nello shell.
+    # In tutto il codice le proprietà relative al fluido di lavoro sono caratterizate dall'indice 'wf_position'
+    # In tutto il codice le proprietà relative al fluido secondario sono caratterizate dall'indice 'sf_position'
 decision = 'not accepted'
 while decision != 'accepted':
     wf_position = data.Selected_Value[0]
@@ -80,10 +80,13 @@ velocity_outlet = [0,0] # [m/s]
 velocity_mean = [0,0] # [m/s]
 viscosity_inlet = [0,0] # [Pa*s]
 viscosity_outlet = [0,0] # [Pa*s]
+viscosity_mean = [0,0] # [Pa*s]
 Re_inlet = [0,0] # [-]
 Re_outlet = [0,0] # [-]
 Re_mean = [0,0] # [-]
 j_h = [0,0] # [-]
+alfa_inlet = [0,0] # [W/(m^2.K)]
+alfa_outlet = [0,0] # [W/(m^2.K)]
 alfa = [0,0] # [W/(m^2.K)]
 h_fouling = [0,0] # [W/(m^2.K)]
 f = [0,0] # [-]
@@ -118,7 +121,7 @@ pressure_mean[wf_position] = np.mean([pressure_inlet[wf_position],pressure_outle
 enthalpy_mean[wf_position] = np.mean([enthalpy_inlet[wf_position],enthalpy_outlet[wf_position]])
 density_mean[wf_position] = np.mean([density_inlet[wf_position],density_outlet[wf_position]])
 quality_mean[wf_position] = np.mean([quality_inlet[wf_position],quality_outlet[wf_position]])
-
+viscosity_mean[wf_position] = np.mean([viscosity_inlet[wf_position],viscosity_outlet[wf_position]])
 
 # Sez. 5 - FLUIDO SECONDARIO
 #
@@ -134,6 +137,7 @@ pressure_mean[sf_position] = np.mean([pressure_inlet[sf_position],pressure_outle
 enthalpy_mean[sf_position] = np.mean([enthalpy_inlet[sf_position],enthalpy_outlet[sf_position]])
 density_mean[sf_position] = np.mean([density_inlet[sf_position],density_outlet[sf_position]])
 quality_mean[sf_position] = np.mean([quality_inlet[sf_position],quality_outlet[sf_position]])
+viscosity_mean[sf_position] = np.mean([viscosity_inlet[sf_position],viscosity_outlet[sf_position]])
 
 # DEFINIZIONE MASSA FLUSSO SECONDARIO
 # La portata massica del fluido secondario viene calcolata sulla base delle condizioni al contorno specificate per i due fluidi
@@ -181,9 +185,9 @@ elif HE_cat == 'X':
     condition = 'false'
     while condition == 'false':
         flow_mix = [0,0]
-        flow_mix[0] = data.Selected_Value[7]
-        flow_mix[1] = data.Selected_Value[8]
-        Ft = Ft_calc.Ft_TEMA_X(flow_mix,temperature_inlet[wf_position], temperature_outlet[wf_position], temperature_inlet[sf_position], temperature_outlet[sf_position]) 
+        # flow_mix[0] = data.Selected_Value[]
+        # flow_mix[1] = data.Selected_Value[]
+        # Ft = Ft_calc.Ft_TEMA_X(flow_mix,temperature_inlet[wf_position], temperature_outlet[wf_position], temperature_inlet[sf_position], temperature_outlet[sf_position]) 
        
 # Specificare il valore del coefficiente globale di scambio di primo tentativo (Uo)
 # Per stimare il valore di Uo vedi Coulson and Richardson's pag. 637 o https://www.engineersedge.com/thermodynamics/overall_heat_transfer-table.htm
@@ -197,7 +201,7 @@ A = Q / (Uo * LMTD * Ft) # [m^2]
 #
 # Scelta lunghezza tubi (L) 
 L = data.Selected_Value[27] # [m]
-
+    
 # Scelta diametro nominale tubi (Do)
 condition = 'false'
 while condition == 'false':
@@ -269,31 +273,12 @@ wt[0] = Wall_thickness.wall_thickness(Do,wt_min[0]) #[m]
 ID = OD - 2*wt[0] # [m]
 D_eq[0] = ID/np_tubi
 
-
-# Sez. 9 - CALCOLI TUBI
-#
 # Calcolo n° tubi (nt), arrotondato al successivo numero pari
 nt = A / (np.pi * OD * L)
-nt = math.ceil(nt / 2.) * 2
+nt = int(round((nt / 2.) * 2))
 
-# Nota le geometria dei tubi si calcola l'area di attraversamento del fluido.
-A_cross[0] = (np.pi*ID**2/4)*nt/np_tubi
 
-# Calcolo velocità lato tubi in ingresso e uscita lato tubi #m/s
-velocity_inlet[0] = M[0] / (density_inlet[0] * A_cross[0])
-velocity_outlet[0] = M[0] / (density_outlet[0] * A_cross[0])
-velocity_mean[0] = np.mean([velocity_inlet[0],velocity_outlet[0]])
-
-# Calcolo numero di Reynolds in ingresso e uscita lato tubi #-
-Re_inlet[0] = density_inlet[0] * velocity_inlet[0] * ID  / viscosity_inlet[0]
-Re_outlet[0] = density_outlet[0] * velocity_outlet[0] * ID / viscosity_outlet[0]
-Re_mean[0] = np.mean([Re_inlet[0],Re_outlet[0]])
-if Re_inlet[0] < 10000:
-    print("Attenzione: basso Reynolds all'ingresso dello scambiatore lato tubi!")
-if Re_outlet[0] < 10000:
-    print("Attenzione: basso Reynolds all'uscita dello scambiatore lato tubi!")
-
-# Sez. 10 - SCELTE MANTELLO
+# Sez. 9 - SCELTE MANTELLO
 #
 # Calcolo del diametro dello shell. 'K1' ed 'n' sono parametri tabulati.
 K1,n = shell.shell_sizing(tube_disposition,np_tubi)
@@ -307,7 +292,7 @@ D_bundle = OD*(nt/K1)**(1/n)
     # - U-tube
 rear_head_type = data.Selected_Value[21]
 shell_clearance = shell.clearance(rear_head_type,D_bundle)
-D_shell_int = D_bundle + 2*shell_clearance # [m]
+D_shell_int = D_bundle + shell_clearance # [m] !!QUANTE VOLTE VA CONSIDERATA LA CLEARANCE? 1 O 2?!!
 
 # Per diametri dello shell inferiori a 24", lo shell è ottenuto da un tubo commerciale.
 # I tubi commerciali non hanno diametri che variano con continuità, ma sono disponibili solo determinate misure.
@@ -326,7 +311,7 @@ if D_shell_int < 24*0.0254: # conversione da inch a m
     # '<' andremo a selezionare un tubo con diametro SUPERIORE rispetto al diametro calcolato.
     # Nel caso in cui viene selezionato un tubo con diametro inferiore rispetto al diametro interno dello shell
     # calcolato, la clearence precedentemente calcolata non verrà rispetta.
-    data_tube['DN [mm]'][(data_tube['DN [mm]'] - D_shell_int) > 0] = 0
+    data_tube['DN [mm]'][(data_tube['DN [mm]'] - D_shell_int) < 0] = 0
     D_shell_0 = data_tube.iloc[(data_tube['DN [mm]'] - D_shell_int).abs().argsort()[:1]]['DN [mm]'].tolist()[0]
     
     # Otteniamo la riga della tabela tubi cui corrisponde il diametro selezionato, tramite questo è possibile
@@ -353,28 +338,59 @@ if D_shell_int < 24*0.0254: # conversione da inch a m
     wt[1] = wt_min[1] + float(min(aux[b])) # [m]
     # La schedula del tubo è ottenuta tramite l'indice dello spessore selezionato.
     Schedula_shell = max(wt_serie.iloc[(wt_serie - wt[1]).abs().argsort()[:1]].index.tolist())
-    
-    # Noto il diametro esterno dello shell e lo spessore del tubo da cui questo è ricavato possiamo calcolare
-    # il diametro interno reale dello shell. Quando questo è stato definito si può calcolare il numero di tubi 
-    # che possiamo inserire all'interno dello shell selezionato.
-    # N.B.: il numero di tubi già calcolato viene sovrascritto con il nuovo numero di tubi
     D_shell_int = D_shell_ext - 2*wt[1]
-    if np_tubi == 1:
-        CTP = 0.93
-    elif np_tubi == 2:
-        CTP = 0.9
-    else:
-        CTP = 0.85
-    if tube_disposition == 't':
-        CL = np.sin(np.pi/3)
-    else:
-        CL = 1
-    nt = (CTP/CL)*(D_shell_int**2/pitch**2)*np.pi/4
-    nt = math.ceil(nt / 2.) * 2
     
+    if data.Selected_Value[32] == 'update nt':
+        # Noto il diametro esterno dello shell e lo spessore del tubo da cui questo è ricavato possiamo calcolare
+        # il diametro interno reale dello shell. Quando questo è stato definito si può calcolare il numero di tubi 
+        # che possiamo inserire all'interno dello shell selezionato.
+        # N.B.: il numero di tubi già calcolato viene sovrascritto con il nuovo numero di tubi
+        
+        if np_tubi == 1:
+            CTP = 0.93
+        elif np_tubi == 2:
+            CTP = 0.9
+        else:
+            CTP = 0.85
+        if tube_disposition == 't':
+            CL = np.sin(np.pi/3)
+        else:
+            CL = 1
+        nt = (CTP/CL)*(D_shell_int**2/pitch**2)*np.pi/4
+        nt = math.floor(nt / 2.) * 2
+        # Il diametro del bundle viene aggiornato per tenere conto delle perdite di carico dovute
+        # a bypass del fluido (saranno inferiori se riempiamo lo shell).        
+        D_bundle = OD*(nt/K1)**(1/n)
+        while D_bundle > D_shell_int:
+            nt -= 2
+            D_bundle = OD*(nt/K1)**(1/n)
+    elif data.Selected_Value[32] == 'no update nt':
+        # Un warning viene stampato per ricordare che il numero di tubi non è stato aggiornato.
+        print('The number of tubes is not updated, higher flow velocity and bypass losses.')
+
 # Quando la geometria dello shell e dei tubi è fissata si calcola l'area di scambio risultante.
 A = np.pi * OD * L * nt   
-    
+
+
+# Sez. 10 - CALCOLI TUBI
+
+# Nota le geometria dei tubi si calcola l'area di attraversamento del fluido.
+A_cross[0] = (np.pi*ID**2/4)*nt/np_tubi
+
+# Calcolo velocità lato tubi in ingresso e uscita lato tubi #m/s
+velocity_inlet[0] = M[0] / (density_inlet[0] * A_cross[0])
+velocity_outlet[0] = M[0] / (density_outlet[0] * A_cross[0])
+velocity_mean[0] = np.mean([velocity_inlet[0],velocity_outlet[0]])
+
+# Calcolo numero di Reynolds in ingresso e uscita lato tubi #-
+Re_inlet[0] = density_inlet[0] * velocity_inlet[0] * ID  / viscosity_inlet[0]
+Re_outlet[0] = density_outlet[0] * velocity_outlet[0] * ID / viscosity_outlet[0]
+Re_mean[0] = np.mean([Re_inlet[0],Re_outlet[0]])
+if Re_inlet[0] < 10000:
+    print("Attenzione: basso Reynolds all'ingresso dello scambiatore lato tubi!")
+if Re_outlet[0] < 10000:
+    print("Attenzione: basso Reynolds all'uscita dello scambiatore lato tubi!")
+
 
 # Sez. 11 - CALCOLI MANTELLO
 #    
@@ -414,6 +430,8 @@ Re_mean[1] = np.mean([Re_inlet[1],Re_outlet[1]])
 # Il valore del baffle cut è caricato da tabella degli input.
 baffle_cut = data.Selected_Value[29]
 
+# BAFFLE HOLE DIAMETER
+baffle_hole_d = 1.02*OD
 
 # Sez. 12 - VALUTAZIONE HEAT TRANSFER FACTOR
 #
@@ -434,36 +452,48 @@ h_fouling[1] = data.Selected_Value[16]
 # Calcolo alfa lato tubo. Abbiamo 3 procedure differenti in base al fenomeno di scambio termica che si presenta.
 # - Raffreddamento/Riscaldamento
 if quality_inlet[0] == quality_outlet[0]:
-    alfa[0] = HT.heat_transfer_coefficient_1ph(temperature_mean,pressure_mean,fluid,Re_mean,j_h,D_eq[0],0,L)
+    # alfa[0] = HT.heat_transfer_coefficient_1ph(temperature_mean,pressure_mean,fluid,Re_mean,j_h,D_eq[0],0,L)
+    alfa_inlet[0] = HT.heat_transfer_coefficient_1ph_Tube(temperature_inlet[0],pressure_inlet[0],viscosity_inlet[0],Re_inlet[0],fluid[0],L,ID)
+    alfa_outlet[0] = HT.heat_transfer_coefficient_1ph_Tube(temperature_outlet[0],pressure_outlet[0],viscosity_outlet[0],Re_outlet[0],fluid[0],L,ID)
+    alfa[0] = np.mean( [alfa_inlet[0],alfa_outlet[0]] )
 # - Condensazione
 elif quality_inlet[0] > quality_outlet[0]:
-    alfa[0] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,D_eq,fluid,0,M)
+    if data.Selected_Value[33] == 'horizontal':
+        alfa_inlet[0] = HT.heat_exchange_coefficient_condensation_horizontal(pressure_inlet[0],quality_inlet[0],Re_inlet[0],M[0],fluid[0],ID,A_cross[0])
+        alfa_outlet[0] = HT.heat_exchange_coefficient_condensation_horizontal(pressure_outlet[0],quality_outlet[0],Re_outlet[0],M[0],fluid[0],ID,A_cross[0])
+        alfa[0] = np.mean( [alfa_inlet[0],alfa_outlet[0]] )
+    elif data.Selected_Value[33] == 'vertical':
+        alfa_inlet[0] = HT.heat_exchange_coefficient_condensation_vertical(pressure_inlet[0],quality_inlet[0],quality_outlet[0],Re_inlet[0],M[0],fluid[0],ID,A_cross[0])
+        alfa_outlet[0] = HT.heat_exchange_coefficient_condensation_vertical(pressure_outlet[0],quality_inlet[0],quality_outlet[0],Re_outlet[0],M[0],fluid[0],ID,A_cross[0])
+        alfa[0] = np.mean( [alfa_inlet[0],alfa_outlet[0]] )
 # - Evaporazione
 else:
-    # Per il calcolo di alfa nel caso evaporativo è necessario conoscere il coefficiente di scambio del fluido
-    # nell'altro lato della parete, in questo caso dobbiamo quindi calcolare alfa lato mantello nel caso di
-    # raffreddamento/condensazione (non può esserci evaporazione da entrambi i lati della parete)
-    if quality_inlet[1] == quality_outlet[1]:
-        alfa[1] = HT.heat_transfer_coefficient_1ph(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,fluid,Re_inlet,Re_outlet,j_h,D_eq[1],1,L)
-    elif quality_inlet[1] > quality_outlet[1]:
-        alfa[1] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,D_eq[1],fluid,1,M)
-    # Noto alfa dall'altra lato della parete possiamo calcolare alfa di evaporazione.
-    alfa[0] = HT.heat_exchange_coefficient_evaporation(temperature_mean,pressure_mean,quality_mean,enthalpy_mean,density_mean,D_eq,velocity_mean,fluid,0,alfa[1],OD,ID,k,h_fouling,LMTD)
-    alfa[0] = HT.heat_exchange_coefficient_evaporation_Liu(temperature_mean,pressure_mean,quality_mean,enthalpy_mean,density_mean,D_eq,velocity_mean,fluid,0,alfa[1],OD,ID,k,h_fouling,LMTD,Q/A,M,data,Ft)
-
+    if data.Selected_Value[33] == 'horizontal':
+        alfa_inlet[0] = HT.heat_exchange_coefficient_evaporation_horizontal(pressure_inlet[0],quality_inlet[0],A_cross[0],ID,fluid[0],Q/A,M[0])
+        alfa_outlet[0] = HT.heat_exchange_coefficient_evaporation_horizontal(pressure_outlet[0],quality_outlet[0],A_cross[0],ID,fluid[0],Q/A,M[0])
+        alfa[0] = np.mean( [alfa_inlet[0],alfa_outlet[0]] )
+    elif data.Selected_Value[33] == 'vertical':
+        alfa_inlet[0] = HT.heat_exchange_coefficient_evaporation_vertical(pressure_inlet[0],temperature_inlet[0],quality_inlet[0],Re_inlet[0],viscosity_inlet[0],ID,Q/A,fluid[0])
+        alfa_outlet[0] = HT.heat_exchange_coefficient_evaporation_vertical(pressure_outlet[0],temperature_outlet[0],quality_outlet[0],Re_outlet[0],viscosity_outlet[0],ID,Q/A,fluid[0])
+        alfa[0] = np.mean( [alfa_inlet[0],alfa_outlet[0]] )    
     
-# Calcolo alfa lato tubo. Abbiamo 3 procedure differenti in base al fenomeno di scambio termica che si presenta.
+# Calcolo alfa lato shell. Abbiamo 3 procedure differenti in base al fenomeno di scambio termica che si presenta.
 # - Raffreddamento/Riscaldamento
-if quality_inlet[1] == quality_outlet[1] and alfa[1] == 0:
-    alfa[1] = HT.heat_transfer_coefficient_1ph(temperature_mean,pressure_mean,fluid,Re_mean,j_h,D_eq[1],1,L)
+if quality_inlet[1] == quality_outlet[1]:
+    # alfa[0] = HT.heat_transfer_coefficient_1ph(temperature_mean,pressure_mean,fluid,Re_mean,j_h,D_eq[0],0,L)
+    alfa_inlet[1] = HT.heat_transfer_coefficient_1ph_Shell(temperature_inlet[1],pressure_inlet[1],velocity_inlet[1],viscosity_inlet[1],fluid[1],density_inlet[1],OD,nt,D_shell_int,baffle_cut,D_bundle,baffle_hole_d,pitch)
+    alfa_outlet[1] = HT.heat_transfer_coefficient_1ph_Shell(temperature_outlet[1],pressure_outlet[1],velocity_outlet[1],viscosity_outlet[1],fluid[1],density_outlet[1],OD,nt,D_shell_int,baffle_cut,D_bundle,baffle_hole_d,pitch)
+    alfa[1] = np.mean( [alfa_inlet[1],alfa_outlet[1]] )
 # - Condensazione
-elif quality_inlet[1] > quality_outlet[1] and alfa[1] == 0:
-    alfa[1] = HT.heat_exchange_coefficient_condensation(temperature_inlet,temperature_outlet,pressure_inlet,pressure_outlet,quality_inlet,quality_outlet,D_eq[1],fluid,1,M)
+elif quality_inlet[1] > quality_outlet[1]:
+    alfa_inlet[1] = HT.heat_exchange_coefficient_condensation_horizontal(temperature_inlet,pressure_inlet,quality_inlet,D_eq,fluid,0,M)
+    alfa_outlet[1] = HT.heat_exchange_coefficient_condensation_horizontal(temperature_outlet,pressure_outlet,quality_outlet,D_eq,fluid,0,M)
+    alfa[1] = np.mean( [alfa_inlet[1],alfa_outlet[1]] )
 # - Evaporazione
-elif quality_inlet[1] < quality_outlet[1]:
-    # In questo caso alfa lato tubi è già noto e può essere inserito direttamente tra gli input della funzione.
-    alfa[1] = HT.heat_exchange_coefficient_evaporation(temperature_mean,pressure_mean,quality_mean,enthalpy_mean,density_mean,D_eq,velocity_mean,fluid,1,alfa[0],OD,ID,k,h_fouling,LMTD)
-    alfa[1] = HT.heat_exchange_coefficient_evaporation_Liu(temperature_mean,pressure_mean,quality_mean,enthalpy_mean,density_mean,D_eq,velocity_mean,fluid,1,alfa[0],OD,ID,k,h_fouling,LMTD,Q/A,M,data,Ft)
+else:
+    alfa_inlet[1] = HT.heat_transfer_coefficient_evaporation_Shell(pressure_inlet[1],quality_inlet[1],fluid[1],pitch,A_cross[1],OD,Q/A)
+    alfa_outlet[1] = HT.heat_transfer_coefficient_evaporation_Shell(pressure_outlet[1],quality_outlet[1],fluid[1],pitch,A_cross[1],OD,Q/A)
+    alfa[1] = np.mean( [alfa_inlet[1],alfa_outlet[1]] )
 
 
 # Sez. 15 - CALCOLO COEFFICIENTE GLOBALE DI SCAMBIO (REALE)
@@ -482,8 +512,8 @@ f[0] = friction_coefficient.friction_coeff_tube(np.mean([Re_inlet[0],Re_outlet[0
 f[1] = friction_coefficient.friction_coeff_shell(np.mean([Re_inlet[1],Re_outlet[1]]),baffle_cut)
 
 # Calcolo delle perdite di carico.
-delta_P[0] = ( 4*f[0]*L*velocity_mean[0]**2 / D_eq[0]*np.mean([density_inlet[0],density_outlet[0]]) ) + velocity_mean[0]**2*np.mean([density_inlet[0],density_outlet[0]])
-delta_P[1] = ( 4*f[1]*L*velocity_mean[1]**2 / D_eq[1]*np.mean([density_inlet[1],density_outlet[1]]) )
+delta_P[0] = ( 4*f[0]*L*velocity_mean[0]**2 / D_eq[0]*density_mean[0] ) + velocity_mean[0]**2*density_mean[0]
+delta_P[1] = ( 4*f[1]*L*velocity_mean[1]**2 / D_eq[1]*density_mean[1] )
 
 # SEZ. 17 - DESIGN OUTPUT
 
@@ -491,5 +521,5 @@ print('Uo_star is:', float("{0:.2f}".format(Uo_star)))
 print('Uo_star is', 100*float("{0:.2f}".format((Uo_star-Uo)/Uo)), '% with respect to Uo')
 print('pressure loss in the tube side is', float("{0:.2f}".format(delta_P[0])), '[Pa]. Selected threshold Selected_Value is', P_loss[0])
 print('pressure loss in the shell side is', float("{0:.2f}".format(delta_P[1])), '[Pa]. Selected threshold Selected_Value is', P_loss[1])
-print('heat transfer coefficinet in the tube side is', float("{0:.2f}".format(alfa[0])), 'W/m^2 K')
-print('heat transfer coefficinet in the shell side is', float("{0:.2f}".format(alfa[1])), 'W/m^2 K')
+print('heat transfer coefficent in the tube side is', float("{0:.2f}".format(alfa[0])), 'W/m^2 K')
+print('heat transfer coefficent in the shell side is', float("{0:.2f}".format(alfa[1])), 'W/m^2 K')
